@@ -167,6 +167,7 @@
     .btn:hover { background: var(--red-dark); transform: translateY(-1px); }
     .btn.secondary { background: var(--blue); }
     .btn.light { background: #edf1f7; color: var(--blue); }
+    .btn.whatsapp { background: #25d366; color: #071d3a; }
 
     .stats {
       display: grid;
@@ -1067,8 +1068,24 @@
     }
 
     function parseDuration(text) {
-      const match = String(text).replace(",", ".").match(/[0-9]+(\.[0-9]+)?/);
+      const match = String(text).replace(",", ".").match(/[0-9]+([.][0-9]+)?/);
       return match ? Number(match[0]) : 0;
+    }
+
+    function moneyFromMaterial(material) {
+      const match = String(material || "").match(/R[$][ ]*([0-9]+([.,][0-9]{1,2})?)/);
+      return match ? match[1].replace(".", ",") : "A definir";
+    }
+
+    function installmentFromMaterial(material) {
+      const match = String(material || "").match(/até[ ]*([0-9]+)x[ ]*de[ ]*R[$][ ]*([0-9]+([.,][0-9]{1,2})?)/i);
+      if (!match) return "A definir";
+      return match[1] + " X " + match[2].replace(".", ",");
+    }
+
+    function monthsFromDuration(duration) {
+      const months = Math.round(parseDuration(duration));
+      return months || "A definir";
     }
 
     function populateFilters() {
@@ -1175,6 +1192,7 @@
 
           <div class="modal-actions">
             <button class="btn light" onclick="window.print()">Imprimir / PDF</button>
+            <button class="btn whatsapp" onclick="copyWhatsappText()">Copiar versão para WhatsApp</button>
           </div>
         </div>
       `;
@@ -1195,6 +1213,63 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeDetails();
     });
+
+    async function copyWhatsappText() {
+      const course = courses.find(c => c.id === selectedId);
+      if (!course) return;
+
+      const durationMonths = monthsFromDuration(course.duration);
+      const materialValue = moneyFromMaterial(course.material);
+      const materialInstallments = installmentFromMaterial(course.material);
+      const modules = course.modules.map(module => "- " + module[0] + ".").join("
+");
+
+      const text = course.name.toUpperCase() + "
+
+" +
+        "TEMPO DE DURAÇÃO: " + course.duration + "
+" +
+        "CARGA HORÁRIA: " + (course.hours || "A definir") + " horas
+
+" +
+        "MÓDULOS:
+
+" + modules + "
+
+" +
+        "👉 Professores Qualificados
+" +
+        "👉 Material Próprio
+" +
+        "👉 Salas Climatizadas
+" +
+        "👉 Certificado Entregue no Final do Curso.
+
+" +
+        "Investimento
+
+" +
+        "Matrícula: R$ 100,00
+
+" +
+        "Material: R$ " + materialValue + (materialInstallments !== "A definir" ? " ou " + materialInstallments + " (no carnê)" : "") + "
+
+" +
+        "Parcelas " + durationMonths + " x R$ 160,00 - pagando até a data de vencimento você ganha R$ 20,00 de desconto - ficando sua parcela a R$ 140,00";
+
+      try {
+        await navigator.clipboard.writeText(text);
+        alert("Texto copiado para o WhatsApp!");
+      } catch (error) {
+        const temp = document.createElement("textarea");
+        temp.value = text;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        temp.remove();
+        alert("Texto copiado para o WhatsApp!");
+      }
+    }
 
 
 
